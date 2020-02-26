@@ -1,6 +1,6 @@
 pragma solidity ^0.5.0;
 
-contract SENTENCE 
+contract WordMetadata 
 {
     using SafeMath for uint256;
     
