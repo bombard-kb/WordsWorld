@@ -1,4 +1,4 @@
-pragma solidity ^0.5.0;
+pragma solidity ^0.5.17;
 
 /*
  * @dev Provides information about the current execution context, including the
@@ -1088,13 +1088,29 @@ contract PHRASE is ERC721Full {
 
     address wordContractAddress = address(0x0);
 
-    mapping(uint256 => uint256[]) id_to_value;
+    struct Phrase {
+        uint256[] word_ids;
+        bool capitalize;
+        uint256 ending;
+    }
+
+    string[] endings;
+    
+    mapping(uint256 => Phrase) id_to_value;
     mapping(bytes32 => uint256) value_to_id;
     mapping(bytes32 => bool) reserved;
 
     constructor() ERC721Full("PHRASE", "PHRASE") public {
         owner = msg.sender;
         _mint(msg.sender, 0);
+        
+        endings.push("");
+        endings.push(".");
+        endings.push("!");
+        endings.push("?");
+        endings.push("...");
+        endings.push("!..");
+        endings.push("?..");
     }
     
     function setOwner(address newOwner) public
@@ -1109,22 +1125,26 @@ contract PHRASE is ERC721Full {
         wordContractAddress = newContractAddress;
     }
     
-    function _registerToken(uint256[] memory value) private {
+    function _registerToken(uint256[] memory value, bool capitalize, uint256 ending) private {
         uint256 tokenId = totalSupply();
-        bytes32 hash = keccak256(abi.encodePacked(value));
+        
+        Phrase memory phrase = Phrase(value, capitalize, ending);
+        
+        bytes32 hash = keccak256(abi.encodePacked(phrase.word_ids, phrase.capitalize, phrase.ending));
         
         require(!reserved[hash], "The Phrase has been reserved already");
         
-        id_to_value[tokenId] = value;
+        id_to_value[tokenId] = phrase;
         value_to_id[hash] = tokenId;
         reserved[hash] = true;
         
         _mint(msg.sender, tokenId);
     }
 
-    function add(uint256[] memory tokens) public payable {
+    function add(uint256[] memory tokens, bool capitalize, uint256 ending) public payable {
         require(tokens.length >= 2, "Should be at least two WORD tokens");
         require(msg.value == (1 finney)*tokens.length, "Should pay 0.001 for each WORD token");
+        require(ending < endings.length, "Invalid ending index");
         
         ERC721 wordContract = ERC721(wordContractAddress);
         
@@ -1139,22 +1159,32 @@ contract PHRASE is ERC721Full {
             word_owner.transfer(1 finney);
         }
         
-        _registerToken(tokens);
+        _registerToken(tokens, capitalize, ending);
     }
     
     function getPhrase(uint256 id) public view returns (string memory phrase) {
-        uint256[] memory word_ids = id_to_value[id];
+        Phrase memory oPhrase = id_to_value[id]; 
         
         Word wordContract = Word(wordContractAddress);
 
-        for (uint256 i = 0; i < word_ids.length; ++i)
+        for (uint256 i = 0; i < oPhrase.word_ids.length; ++i)
         {
-            string memory word = wordContract.getWord(word_ids[i]);
+            string memory word = wordContract.getWord(oPhrase.word_ids[i]);
             
             if (i == 0) 
                 phrase = word;
             else 
                 phrase = string(abi.encodePacked(phrase, " ", word)); 
         }
+        
+        if (oPhrase.capitalize)
+        {
+            bytes memory bStr = bytes(phrase);
+		    bStr[0] = bytes1(uint8(bStr[0]) - 32);
+		    
+		    phrase = string(bStr);
+        }
+        
+        phrase = string(abi.encodePacked(phrase, endings[oPhrase.ending]));
     }
 }
