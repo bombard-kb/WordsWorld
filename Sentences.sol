@@ -1216,6 +1216,41 @@ contract Sentence is ERC721Full {
         fees[msg.sender].push(word_owner);
     }
     
+    function addFewWords(uint256[] memory word_ids, uint256[] memory separators) public payable
+    {
+        require(msg.value == word_ids.length * fee_per_token, "Should pay 0.001 for each WORD token");
+        
+        string memory separator = "";
+        
+        for(uint256 i = 0; i < separators.length; ++i)
+        {
+            uint256 punctuation_index = separators[i];
+            require(punctuation_index < punctuation.length, "Should use valid punctuation");
+            
+            separator = string(abi.encodePacked(separator, punctuation[punctuation_index])); 
+        }
+        
+        Word wordContract = Word(wordContractAddress);
+        ERC721 ercContract = ERC721(wordContractAddress);
+        
+        for (uint256 i = 0; i < word_ids.length; ++i)
+        {
+            uint256 word_id = word_ids[i];
+            
+            string memory word = wordContract.getWord(word_id);
+            address payable word_owner = address(uint160(ercContract.ownerOf(word_id)));
+        
+            require(bytes(word).length > 0, "The word shouldn not be an empty string");
+            
+            if (i == 0)
+                preview[msg.sender] = string(abi.encodePacked(preview[msg.sender], word)); 
+            else
+                preview[msg.sender] = string(abi.encodePacked(preview[msg.sender], separator, word));
+                
+            fees[msg.sender].push(word_owner);
+        }
+    }
+    
     function addMath(uint256 math_id) public payable
     {
         require(msg.value == fee_per_token, "Should pay 0.001 for each MATH token");
@@ -1224,6 +1259,36 @@ contract Sentence is ERC721Full {
         
         preview[msg.sender] = string(abi.encodePacked(preview[msg.sender], uintToString(math_id))); 
         fees[msg.sender].push(math_owner);
+    }
+    
+    function addFewMath(uint256[] memory math_ids, uint256[] memory separators) public payable
+    {
+        require(msg.value == math_ids.length * fee_per_token, "Should pay 0.001 for each MATH token");
+        
+        string memory separator = "";
+        
+        for(uint256 i = 0; i < separators.length; ++i)
+        {
+            uint256 punctuation_index = separators[i];
+            require(punctuation_index < punctuation.length, "Should use valid punctuation");
+            
+            separator = string(abi.encodePacked(separator, punctuation[punctuation_index])); 
+        }
+        
+        ERC721 ercContract = ERC721(mathContractAddress);
+        
+        for (uint256 i = 0; i < math_ids.length; ++i)
+        {
+            uint256 math_id = math_ids[i];
+            address payable math_owner = address(uint160(ercContract.ownerOf(math_id)));
+        
+            if (i == 0)
+                preview[msg.sender] = string(abi.encodePacked(preview[msg.sender], uintToString(math_id))); 
+            else 
+                preview[msg.sender] = string(abi.encodePacked(preview[msg.sender], separator, uintToString(math_id)));
+                
+            fees[msg.sender].push(math_owner);
+        }
     }
     
     function getSentence(uint256 id) public view returns (string memory sentence)
